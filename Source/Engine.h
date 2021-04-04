@@ -19,7 +19,7 @@
 class BitmaskerEngine
 {
 public:
-    BitmaskerEngine()
+    BitmaskerEngine() : removeDCOffset()
     {
 #if N_BITS == 8
         andmask.store(std::bitset<8>("11111111"));
@@ -33,9 +33,15 @@ public:
         bitremap.store({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15});
 #endif
 
-
+        lastsamps.fill(0.0);
+        entropyval.store(0.0);
 
         removedenormals.store(false);
+
+        for (int i = 0; i < 64; ++i)
+        {
+            removeDCOffset[i] = std::make_unique<dsp::IIR::Filter<double>>(dsp::IIR::Coefficients<double>::makeFirstOrderHighPass(44100, 1));
+        }
     }
     ~BitmaskerEngine() { }
 
@@ -43,13 +49,26 @@ public:
 //    std::atomic<uint8> andmask, ormask, xormask;
     std::atomic<std::bitset<N_BITS>> andmask, ormask, xormask;
     std::atomic<bool> removedenormals;
+    std::atomic<double> entropyval, entropyamt;
+
+    std::array<double, 64> lastsamps; // todo: remove arbitrary channel count limit
+    int _numChannels = 0;
+
+
+    std::array<std::unique_ptr<juce::dsp::IIR::Filter<double>>, 64> removeDCOffset;
 
 public:
 
-//    void processSamplesContextReplacing(float* data, size_t size)
-//    {
-//
-//    }
+    void prepareToPlay(int numChannels, int samplesPerBlock, double SR)
+    {
+        if (numChannels > 64) jassertfalse;
+        _numChannels = numChannels;
+        for (int i = 0; i < numChannels; ++i)
+        {
+            removeDCOffset[i]->reset();
+            removeDCOffset[i]->prepare({SR, static_cast<uint32>(samplesPerBlock), static_cast<uint32>(numChannels)});
+        }
+    }
 
     void processSamplesContextReplacing(AudioBuffer<float>& a)
     {
@@ -134,7 +153,29 @@ public:
 
 
             dst.convertSamples(src, a.getNumSamples());
+
+//            if ()
+            for (int samp = 0; samp < a.getNumSamples(); ++samp)
+            {
+                double entval = entropyval.load();
+                double entamt = entropyamt.load();
+
+                double nextval = (pow(entval, pow(lastsamps[chan] - a.getSample(chan, samp) + 1, (1.f/entval))) * entamt) + a.getSample(chan, samp) - entamt/2.f;
+
+                if (isnan(nextval)) { nextval = 0; }
+                else nextval = std::max(-1.0, std::min(nextval, 1.0));
+
+                if (samp % 5 == 0) removeDCOffset[chan]->snapToZero(); // every so often, remove denormals
+                nextval = removeDCOffset[chan]->processSample(nextval);
+
+                a.setSample(chan, samp, nextval);
+                lastsamps[chan] = a.getSample(chan, samp);
+            }
         }
+
+
+
+
     }
 
     void setandmask(String newandmask) { andmask.store(std::bitset<N_BITS>(newandmask.toStdString())); }
@@ -152,6 +193,16 @@ public:
     void setEntireBitRemap(std::array<uint8, N_BITS> newBitRemap)
     {
         bitremap.store(newBitRemap);
+    }
+
+    void setEntropyVal(double newentropyval)
+    {
+        entropyval.store(newentropyval);
+    }
+
+    void setEntropyAmt(double newentropyamt)
+    {
+        entropyamt.store(newentropyamt);
     }
 
 

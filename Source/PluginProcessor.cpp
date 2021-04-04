@@ -97,6 +97,8 @@ void bittyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
+
+    ed.prepareToPlay(getTotalNumInputChannels(), samplesPerBlock, sampleRate);
 }
 
 void bittyAudioProcessor::releaseResources()

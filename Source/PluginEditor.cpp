@@ -17,6 +17,8 @@ bittyAudioProcessorEditor::bittyAudioProcessorEditor (bittyAudioProcessor& p)
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize (400, 300);
+    setResizable(true, true);
+    setResizeLimits(400, 300, 4000, 3000);
 
 
 
@@ -81,14 +83,33 @@ bittyAudioProcessorEditor::bittyAudioProcessorEditor (bittyAudioProcessor& p)
     xorLabel.setText("xor mask", dontSendNotification);
     andLabel.setText("and mask", dontSendNotification);
     orLabel.setText("or mask", dontSendNotification);
+    entropySliderLabel.setText("entropy", dontSendNotification);
     bitremapLabel.setText("bit remapping", dontSendNotification);
 
     xorLabel.attachToComponent(&xorMaskEditor, true);
     andLabel.attachToComponent(&andMaskEditor, true);
     orLabel.attachToComponent(&orMaskEditor, true);
+    entropySliderLabel.attachToComponent(&entropySlider, true);
 //    bitremapLabel.attachToComponent(&bitRemapEditor, true);
 
 
+
+    entropySlider.setRange({0.0, 1.0}, 0.0000001);
+    entropySlider.addListener(this);
+    entropySlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    entropySlider.setTextBoxIsEditable(true);
+    entropySlider.setDoubleClickReturnValue(true, 0.0);
+    entropySlider.setValue(0.0);
+
+    entropyAmtSlider.setRange({-10.f, 10.f}, 0.0001);
+    entropyAmtSlider.addListener(this);
+    entropyAmtSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    entropyAmtSlider.setTextBoxIsEditable(true);
+    entropyAmtSlider.setDoubleClickReturnValue(true, 1.0);
+    entropyAmtSlider.setValue(1.0);
+
+    addAndMakeVisible(entropyAmtSlider);
+    addAndMakeVisible(entropySlider);
 
     for(Label* a : labels)
     {
@@ -176,7 +197,7 @@ void bittyAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colours::white);
     g.setFont (15.0f);
-    g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
+//    g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
 }
 
 void bittyAudioProcessorEditor::resized()
@@ -192,10 +213,27 @@ void bittyAudioProcessorEditor::resized()
     remaparea.removeFromTop(10);
     bitRemapEditor.setBounds(remaparea);
 
-    int areaper = maskarea.proportionOfHeight(0.33);
+    int areaper = maskarea.proportionOfHeight(0.25);
     andMaskEditor.setBounds(maskarea.removeFromTop(areaper).reduced(0, 10).removeFromRight(300));
     orMaskEditor.setBounds(maskarea.removeFromTop(areaper).reduced(0, 10).removeFromRight(300));
     xorMaskEditor.setBounds(maskarea.removeFromTop(areaper).reduced(0, 10).removeFromRight(300));
 
+    auto a = maskarea.removeFromTop(areaper).reduced(0, 10);
+    entropySlider.setBounds(a.removeFromRight(150));
+    entropyAmtSlider.setBounds(a);
 
+
+}
+
+
+void bittyAudioProcessorEditor::sliderValueChanged(Slider *s)
+{
+    if (s == &entropySlider)
+    {
+        _p->ed.setEntropyVal(entropySlider.getValue());
+    }
+    if (s == &entropyAmtSlider)
+    {
+        _p->ed.setEntropyAmt(entropyAmtSlider.getValue());
+    }
 }
