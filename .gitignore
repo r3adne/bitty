@@ -86,7 +86,7 @@
 cmake-build-*/
 cmake-build/
 
-
+.idea/*
 
 
 # Mongo Explorer plugin
