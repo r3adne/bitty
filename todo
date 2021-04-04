@@ -1,0 +1,2 @@
+* add installer
+* write script to build and run unit tests, build all targets in release, run auval and pluginval, make installer, wrap it in a dmg, and zip it. 
